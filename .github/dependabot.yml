@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Actions are pinned by commit hash, so this is what keeps pinning from
+  # meaning going stale.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: cargo
+    directory: /app
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: weekly

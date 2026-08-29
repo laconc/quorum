@@ -1,0 +1,6 @@
+# The workspace tracks the latest stable toolchain, matching ironstate's
+# convention. `rust-version` in Cargo.toml is a floor, not a pin; `make msrv`
+# verifies the floor still builds.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

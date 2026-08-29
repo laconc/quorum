@@ -1,0 +1,22 @@
+[package]
+name = "app-db"
+version = "0.1.0"
+description = "The workspace's only source of a database handle. Tenant isolation is a property of this module graph, not a convention."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+r2d2.workspace = true
+r2d2_sqlite.workspace = true
+rusqlite.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

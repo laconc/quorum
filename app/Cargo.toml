@@ -1,0 +1,59 @@
+[workspace]
+resolver = "3"
+# Members are an explicit list, never a glob: a crate joins the workspace as a
+# deliberate act, and the list doubles as the map of what exists.
+members = [
+    "crates/crypto",
+    "crates/db",
+    "crates/seed",
+    "crates/testkit",
+    "crates/web",
+]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.98"
+license = "UNLICENSED"
+publish = false
+repository = "https://github.com/laconc/quorum"
+
+[workspace.dependencies]
+# internal
+app-crypto = { path = "crates/crypto" }
+app-db = { path = "crates/db" }
+app-testkit = { path = "crates/testkit" }
+
+# external — pin minor, let patch float
+anyhow = "1"
+askama = "0.16"
+axum = "0.8"
+hex = "0.4"
+hmac = "0.13"
+proptest = "1"
+r2d2 = "0.8"
+r2d2_sqlite = "0.35"
+rand = { version = "0.10", features = ["sys_rng"] }
+# `limits` gates set_limit, which is the only route to disabling ATTACH.
+rusqlite = { version = "0.40", features = ["bundled", "limits"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.11"
+subtle = "2"
+thiserror = "2"
+time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+tower = "0.5"
+tower-http = { version = "0.7", features = ["set-header", "trace", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { version = "1", features = ["v4"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Money and identifiers are i64/u64 by design; the casts that matter are
+# reviewed at their sites rather than blanket-allowed.
+module_name_repetitions = "allow"

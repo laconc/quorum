@@ -1,0 +1,20 @@
+[package]
+name = "app-seed"
+version = "0.1.0"
+description = "Deterministic seed data: one generator feeding integration tests, the isolation harness, and the screenshot suite."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "seed"
+path = "src/main.rs"
+
+[dependencies]
+app-db.workspace = true
+anyhow.workspace = true
+
+[lints]
+workspace = true

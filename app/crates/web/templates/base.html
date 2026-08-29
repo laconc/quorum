@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <!-- Zoom is never suppressed. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Quorum{% endblock %}</title>
+    <!-- htmx injects an inline <style> for its indicator classes unless
+         told not to, and the Content Security Policy has no
+         unsafe-inline to admit it. Configuration travels by meta tag,
+         which needs no inline script; the indicator styles live in the
+         stylesheet instead. -->
+    <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
+    <link rel="stylesheet" href="{{ css_url }}">
+    <script src="{{ htmx_url }}" defer></script>
+  </head>
+  <body>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

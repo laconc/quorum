@@ -1,0 +1,156 @@
+/* Design tokens.
+ *
+ * These are requirements with reasons, not preferences, and they come from the
+ * population this is built for: owners and residents skewed heavily past 65,
+ * signing in a few times a year, often on a phone.
+ *
+ * Body text is 17-18px rather than 16 because presbyopia is the default
+ * assumption. Contrast targets exceed the accessibility minimum because
+ * contrast sensitivity declines with age independently of visual acuity.
+ * Everything sizes in rem so operating-system font scaling works. Touch targets
+ * are 44px because the standard's 24px is a floor, not a goal, and this
+ * audience includes people with tremor and arthritis.
+ *
+ * Phase 2 builds the real design system on top of these; Phase 0 establishes
+ * the tokens so nothing is authored against different numbers in the meantime.
+ */
+:root {
+  --text: #16191d;
+  --text-quiet: #4a5058;
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --line: #c9cdd3;
+  --accent: #1f4e7a;
+  --accent-text: #ffffff;
+
+  --body-size: 1.0625rem; /* 17px at a 16px root */
+  --line-height: 1.5;
+  --touch-target: 2.75rem; /* 44px */
+  --radius: 6px;
+  --measure: 34rem;
+
+  /* A system stack is deliberate here: screenshots are generated inside the
+   * end-to-end container, so the same fonts resolve every run. Phase 2 bundles
+   * a webfont when real typography arrives, which is also what makes local and
+   * container renders agree. */
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1.25rem 4rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--body-size);
+  line-height: var(--line-height);
+}
+
+main {
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+.quiet {
+  color: var(--text-quiet);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.card h2 {
+  font-size: 1.125rem;
+  margin: 0 0 0.75rem;
+}
+
+dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.375rem 1rem;
+}
+
+dt {
+  color: var(--text-quiet);
+}
+
+dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+button {
+  font: inherit;
+  min-height: var(--touch-target);
+  padding: 0 1.25rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+button:hover {
+  background: #183f63;
+}
+
+/* Focus must be visible: keyboard navigation is not an edge case here. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.result {
+  margin-top: 1rem;
+  min-height: var(--touch-target);
+}
+
+.result p {
+  margin: 0;
+}
+
+/* Motion is opt-out, and htmx's own transitions respect it too. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* htmx request indicators.
+ *
+ * These normally arrive as an inline <style> htmx injects at load. The Content
+ * Security Policy has no unsafe-inline, so injection is refused and we carry
+ * them here instead — see the meta tag in the base template. */
+.htmx-indicator {
+  opacity: 0;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}

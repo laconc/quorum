@@ -1,0 +1,43 @@
+# Lint-enforced invariants.
+#
+# Each entry here is a rule that would otherwise live in a document nobody reads
+# at the moment they are about to break it. A rule with no mechanism is a wish.
+
+disallowed-methods = [
+    # Time is injected. Cure periods, term expiries, vote closings, delay
+    # windows, and suspension windows are all defined by elapsed time, and none
+    # of them are testable if the current instant is read at the point of use.
+    # Take a `Clock` instead. The single permitted call site is
+    # `app_testkit::SystemClock::now`, which carries an allow and a comment
+    # explaining why it is the only one.
+    { path = "std::time::SystemTime::now", reason = "time is injected: take an app_testkit::Clock" },
+    { path = "std::time::Instant::now", reason = "time is injected: take an app_testkit::Clock" },
+    { path = "time::OffsetDateTime::now_utc", reason = "time is injected: take an app_testkit::Clock" },
+    # Not reachable unless the `local-offset` feature is enabled, which it is
+    # not. Listed anyway so the ban is already in place if anyone enables it.
+    { path = "time::OffsetDateTime::now_local", reason = "time is injected: take an app_testkit::Clock", allow-invalid = true },
+    { path = "time::UtcDateTime::now", reason = "time is injected: take an app_testkit::Clock" },
+
+    # Hashing and signing go through app-crypto, which returns values carrying
+    # the algorithm that produced them. The records this system writes outlive
+    # any particular algorithm choice, so a bare digest with no algorithm
+    # recorded beside it is a migration problem waiting seven years to happen.
+]
+
+disallowed-types = [
+    # Hashing and message authentication go through app-crypto, which returns
+    # values carrying the algorithm that produced them. The records this system
+    # writes outlive any particular algorithm choice, so a bare digest with no
+    # algorithm recorded beside it is a migration problem waiting seven years to
+    # happen. app-crypto itself carries a documented module-level exception.
+    { path = "sha2::Sha256", reason = "hash through app_crypto so the algorithm travels with the digest" },
+    { path = "sha2::Sha384", reason = "hash through app_crypto so the algorithm travels with the digest" },
+    { path = "sha2::Sha512", reason = "hash through app_crypto so the algorithm travels with the digest" },
+    { path = "hmac::Hmac", reason = "authenticate through app_crypto so the algorithm travels with the code" },
+
+    # Money is i64 minor units end to end, and fractional shares are integer
+    # numerator/denominator pairs. A float in the money path is a rounding
+    # defect that only shows up in reconciliation, months later.
+    { path = "f32", reason = "no floating point in the money path: use i64 minor units" },
+    { path = "f64", reason = "no floating point in the money path: use i64 minor units" },
+]

@@ -1,0 +1,15 @@
+{
+  "name": "quorum-e2e",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests, accessibility checks, and the screenshot pipeline.",
+  "scripts": {
+    "test": "playwright test",
+    "screenshots": "playwright test --grep @screenshot",
+    "a11y": "playwright test --grep @a11y"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.56.0"
+  }
+}

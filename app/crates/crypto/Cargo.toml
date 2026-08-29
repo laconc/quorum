@@ -1,0 +1,25 @@
+[package]
+name = "app-crypto"
+version = "0.1.0"
+description = "The workspace's only hashing, signing, and token surface. Every artifact records the algorithm that produced it."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+hex.workspace = true
+hmac.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

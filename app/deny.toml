@@ -1,0 +1,39 @@
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+# Permissive licences only. This is a proprietary application, so a copyleft
+# dependency is a licensing problem rather than a preference. The list is
+# trimmed to what the tree actually contains, so an addition is a deliberate
+# review rather than something that slid in under a pre-approved umbrella.
+allow = [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "MIT",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+# Our own crates are proprietary and `publish = false`. They carry no SPDX
+# expression because there is no licence to express, so they are skipped rather
+# than given a fictitious one.
+private = { ignore = true }
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Internal crates are referenced by path within the workspace and carry no
+# version requirement, which reads as a wildcard. They are never published, so
+# there is no version to resolve against and nothing for a wildcard to go wrong
+# with.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

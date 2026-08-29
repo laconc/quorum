@@ -1,0 +1,19 @@
+# Build output
+/app/target/
+/target/
+
+# Generated data
+/.data/
+/.e2e-data/
+/.screenshot-verify/
+
+# End-to-end toolchain
+/e2e/node_modules/
+/e2e/test-results/
+/e2e/playwright-report/
+
+# Editors and platforms
+.DS_Store
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Harness check{% endblock %}
+
+{% block content %}
+<h1>The harness works</h1>
+
+<p class="quiet">
+  Phase 0 has no product in it. This page exists to prove the pipeline end to
+  end: the template is checked at compile time, the script and stylesheet are
+  served from fingerprinted URLs the Content Security Policy admits, the clock
+  is injected rather than read, and a screenshot of this page is byte-identical
+  between runs.
+</p>
+
+<div class="card">
+  <h2>Build facts</h2>
+  <dl>
+    <dt>Time</dt>
+    <dd>{{ now }}</dd>
+    <dt>Clock</dt>
+    <dd>injected</dd>
+    <dt>Templates</dt>
+    <dd>compile-time checked</dd>
+  </dl>
+</div>
+
+<div class="card">
+  <h2>Partial update</h2>
+  <p class="quiet">
+    The swap below targets a live region, so assistive technology is told the
+    content changed. That is a requirement rather than polish: htmx replaces
+    content silently by default, and an update nobody is told about is an
+    update the user never learns of.
+  </p>
+
+  <button type="button"
+          hx-get="/check"
+          hx-target="#result"
+          hx-swap="innerHTML">
+    Run the check
+  </button>
+
+  <!-- aria-live is on the container, which is present from first paint, so
+       the swap is announced. A live region added at the same moment as its
+       content is not announced at all. -->
+  <div id="result" class="result" role="status" aria-live="polite"></div>
+</div>
+{% endblock %}
