@@ -50,7 +50,7 @@ enforces it. A gallery that churns on every run is a gallery everyone learns to
 ignore, and a visual-regression baseline that moves on its own is not a
 baseline.
 
-Four things make it hold. When an image changes unexpectedly, check them in this
+Five things make it hold. When an image changes unexpectedly, check them in this
 order — it is nearly always the first two:
 
 1. **The frozen clock.** The application reads `APP_CLOCK` and installs a fixed
@@ -59,11 +59,39 @@ order — it is nearly always the first two:
 2. **Fixed identifiers.** The seed generator is deterministic: same input, same
    row identifiers, same case numbers, same ordering. It draws no randomness and
    reads no clock.
-3. **Fonts.** A system font stack renders differently across machines, so images
-   are produced inside the end-to-end container both locally and in continuous
-   integration. Phase 2 bundles a webfont when real typography arrives.
+3. **Rendering environment.** `make screenshots` runs inside pinned containers —
+   a Rust image to build Linux binaries and the matching Playwright image to
+   drive the browsers — at a pinned architecture. Text rasterisation differs
+   between macOS and Linux, so generating on a laptop without this would churn
+   every image.
 4. **Animation.** Disabled during capture, and the page honours
    `prefers-reduced-motion`.
+
+5. **Chromium's rasteriser is pinned.** Skia selects SIMD code paths by
+   detecting CPU features at runtime, so an emulated x86_64 container and a
+   native runner rasterise the same glyph differently.
+   `--disable-skia-runtime-opts` forces the portable path, and subpixel
+   antialiasing, subpixel positioning and colour management are disabled for
+   the same reason. WebKit needs none of this — its images matched CI before
+   any of it was added.
+
+### What this guarantees
+
+Regenerating twice in the same place produces identical bytes — checked by
+`make screenshots-verify` — **and** your machine produces the same bytes as CI,
+which is checked by continuous integration regenerating the gallery and diffing
+it against what you committed.
+
+That second property is what makes the check worth having. It catches a stale
+gallery from **any** cause, not only the ones a path list happens to name: a
+change to the seed data, to the handler behind a template, or to the screenshot
+tests themselves all alter the images without touching anything under
+`templates/` or `static/`.
+
+The pixel tolerance is zero, and it stays zero. If images differ, something
+about the page or the pipeline changed, and the answer is to find out what —
+never to widen a tolerance until the check passes, which converts a check into
+a formality.
 
 The pixel tolerance is **zero**. A budget hides exactly the small regressions
 this exists to catch.

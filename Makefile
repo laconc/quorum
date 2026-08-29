@@ -17,6 +17,41 @@ APP_CLOCK ?= 2026-03-01T12:00:00Z
 # Where the seed databases are written.
 DATA_DIR ?= .data
 
+# Screenshots are produced inside containers, and this is not incidental.
+# Text rasterisation differs between macOS and Linux, so a gallery regenerated
+# on a laptop will never byte-match one regenerated in CI — the images churn
+# depending on who ran the command last, and a baseline that moves on its own
+# is not a baseline. Pinning the image *and* the architecture makes the two
+# identical by construction rather than by luck: CI runs x86_64, so an Apple
+# Silicon machine emulates it rather than producing something merely similar.
+PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.62.1-noble
+# Tied to MSRV rather than written as `rust:1.98`, which would float to whatever
+# patch release is current and quietly change the compiler inside a pipeline
+# whose whole purpose is reproducibility.
+RUST_IMAGE := rust:$(MSRV)
+CONTAINER_PLATFORM := linux/amd64
+# A separate target directory: the host's macOS build and the container's Linux
+# build must not evict each other.
+LINUX_TARGET := target-linux
+# The repository is bind-mounted, so anything the container writes lands in the
+# working tree with the container's ownership. Left as root that produces
+# root-owned build output and images which a normal user then cannot delete —
+# `rm -rf app/target-linux` fails part-way through, and `make clean` stops
+# being able to clean. Docker Desktop hides this on macOS; on Linux, and in CI,
+# it does not. Running as the invoking user keeps every generated file owned by
+# whoever asked for it.
+HOST_UID := $(shell id -u)
+HOST_GID := $(shell id -g)
+# A UID with no matching passwd entry has no home directory, so anything that
+# wants to write a cache needs to be told where. Both live inside the mount, so
+# they are the invoking user's too.
+CONTAINER_HOME := /repo/.container-home
+CONTAINER_HOME_HOST := $(CURDIR)/.container-home
+IN_CONTAINER := docker run --rm --platform $(CONTAINER_PLATFORM) \
+	--user $(HOST_UID):$(HOST_GID) \
+	-e HOME=$(CONTAINER_HOME) -e XDG_CACHE_HOME=$(CONTAINER_HOME)/.cache \
+	-v "$(CURDIR)":/repo
+
 CARGO_DIR := cd $(APP) &&
 
 .DEFAULT_GOAL := help
@@ -89,7 +124,11 @@ e2e-install: ## Install the end-to-end toolchain and its browsers
 .PHONY: e2e
 e2e: ## Run the end-to-end suite against a release build
 	$(CARGO_DIR) $(CARGO) build --release -p app-web -p app-seed
-	cd $(E2E) && npx playwright test
+	# Screenshots are excluded deliberately. `make screenshots` owns the gallery
+	# and writes it from inside a container; if this ran them too it would
+	# overwrite those images with host-rendered ones, and whichever command ran
+	# last would decide what got committed.
+	cd $(E2E) && npx playwright test --grep-invert @screenshot
 
 .PHONY: a11y
 a11y: ## Run the accessibility checks over every route
@@ -97,13 +136,16 @@ a11y: ## Run the accessibility checks over every route
 	cd $(E2E) && npx playwright test --grep @a11y
 
 .PHONY: screenshots
-screenshots: ## Regenerate docs/screenshots/
-	$(CARGO_DIR) $(CARGO) build --release -p app-web -p app-seed
+screenshots: ## Regenerate docs/screenshots/ (in a container, so CI and a laptop agree)
+	@mkdir -p $(CONTAINER_HOME_HOST)/.cargo
+	$(IN_CONTAINER) -w /repo/app -e CARGO_HOME=$(CONTAINER_HOME)/.cargo \
+		$(RUST_IMAGE) cargo build --release --target-dir $(LINUX_TARGET) -p app-web -p app-seed
 	# Cleared first so an image whose test was removed shows up as a deletion.
 	# Left in place it would sit in the gallery forever: `git diff` cannot see a
 	# file that never changed, so nothing downstream would ever notice.
 	rm -f docs/screenshots/*.png
-	cd $(E2E) && npx playwright test --grep @screenshot
+	$(IN_CONTAINER) -w /repo/$(E2E) -e APP_BIN_DIR=../app/$(LINUX_TARGET)/release \
+		$(PLAYWRIGHT_IMAGE) npx playwright test --grep @screenshot
 
 .PHONY: screenshots-verify
 screenshots-verify: ## Prove the screenshot pipeline is deterministic (two runs, byte-identical)
@@ -115,7 +157,9 @@ screenshots-verify: ## Prove the screenshot pipeline is deterministic (two runs,
 		echo "screenshots are byte-identical across two runs"; \
 	else \
 		echo "ERROR: screenshots differ between runs. Check, in order: the frozen"; \
-		echo "clock (APP_CLOCK), asset fingerprints, fonts, and animation."; \
+		echo "clock (APP_CLOCK); fixed identifiers from the seed generator; the"; \
+		echo "container images and pinned architecture; Chromium's rasteriser"; \
+		echo "flags; and animation. See docs/screenshots/README.md."; \
 		diff -r --exclude=README.md .screenshot-verify docs/screenshots || true; \
 		rm -rf .screenshot-verify; \
 		exit 1; \
@@ -130,4 +174,8 @@ pr-screenshots: ## Emit Markdown embedding the screenshots changed on this branc
 .PHONY: clean
 clean: ## Remove build artifacts and generated data
 	$(CARGO_DIR) $(CARGO) clean
-	rm -rf $(DATA_DIR) .screenshot-verify
+	# The container build has its own target directory, so `cargo clean` on the
+	# host does not touch it. Removed by hand, or "clean" would quietly leave
+	# the larger of the two behind.
+	rm -rf $(APP)/$(LINUX_TARGET)
+	rm -rf $(DATA_DIR) .e2e-data .screenshot-verify $(CONTAINER_HOME_HOST)

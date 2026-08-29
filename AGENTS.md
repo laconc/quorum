@@ -55,7 +55,8 @@ fails a build.
 | Every response carries the security headers | applied as a layer, asserted over the real router in `crates/web/tests/security_headers.rs` |
 | Authenticated HTML is never stored by a cache | `private, no-store` is the default; caching is opt-in per route |
 | No floating point in the money path | `clippy.toml` `disallowed-types` |
-| Screenshots are byte-identical between runs | `make screenshots-verify` |
+| Screenshots are byte-identical between runs, **and across machines** | `make screenshots-verify`, plus CI regenerating and diffing the committed gallery |
+| The gallery changes whenever the frontend does | the `frontend-gate` job, from the diff rather than the author's judgement |
 
 Later phases add: every route has an authorization-matrix entry, every read path
 returns one association's rows, no member-only route answers an unauthenticated
@@ -134,6 +135,17 @@ is, anything under `app/crates/web/templates/`, `app/crates/web/static/`, or
 judgement. When nothing frontend changed, the section reads
 `N/A — no frontend change`. `make pr-screenshots` emits the Markdown.
 
+**Anything an agent writes on a pull request says so.** Descriptions, review
+replies, and comments all end with an attribution line naming Claude and the
+account it acted on behalf of. A human reading a review thread is entitled to
+know which side of it was written by a person — the reply may be right either
+way, but who wrote it changes how much independent checking it deserves.
+
+**Answer a review comment, then resolve its thread.** An answered thread left
+open is indistinguishable from an ignored one, and the reviewer has to re-read
+it to find out which. Do not resolve a thread whose comment has not actually
+been addressed in the code.
+
 ## Layout
 
 - `app/` — the Cargo workspace. Rust lives under `app/`; the `Makefile` at the
@@ -194,13 +206,30 @@ judgement. When nothing frontend changed, the section reads
   Content Security Policy, and htmx's injected `<style>` is refused by a policy
   with no `unsafe-inline` — which is the policy working.
 - **`ironstate` is consumed from crates.io**, never as a path dependency, even
-  though it is developed locally. A path dependency would make this repository's
-  builds depend on someone's uncommitted work.
+  though it is developed locally and moves fast. A path dependency would make
+  this repository's builds depend on someone's uncommitted work, and would mean
+  a local experiment upstream could break this build with nothing recorded
+  about why. Check what is actually published before planning around a feature.
 - **Screenshots come from one engine per viewport.** Three browser projects run
   the checks, but two share a 375px width and would race for one filename.
 - **The screenshot pixel tolerance is zero.** A budget hides exactly the small
   regressions the suite exists to catch, and invites tuning the number instead
   of fixing the cause.
+- **`make e2e` deliberately skips the screenshot tests.** `make screenshots`
+  owns the gallery and writes it from inside a container. If the end-to-end run
+  wrote it too, host-rendered images would overwrite container-rendered ones and
+  whichever command ran last would decide what got committed.
+- **`make screenshots` runs in containers, and is therefore slow.** Text
+  rasterises differently on macOS and Linux, so a gallery regenerated on a
+  laptop would never match one regenerated in CI. The Rust and Playwright
+  images and the architecture are all pinned. Do not "speed this up" by running
+  the browsers natively.
+- **Chromium is launched with `--disable-skia-runtime-opts` and friends.** Skia
+  picks SIMD paths by detecting CPU features at runtime, so an emulated x86_64
+  container and a native runner rasterise the same glyph differently. Pinning
+  the portable path is what lets an Apple Silicon machine produce byte-identical
+  images to CI — without it the gallery check fails for a reason no author can
+  act on. WebKit needs none of this; its images already matched.
 
 ## What deliberately doesn't exist
 
@@ -208,14 +237,54 @@ Recorded so it is not re-derived later, each with what would change the answer.
 
 - **No `docs/decisions/` directory.** The design document's §3 is the decision
   log and is amended in place; phase reviews carry everything else.
-- **No `ironstate-journal`.** Its `append` owns its own transaction boundary and
-  cannot enlist in the caller's, but a state change and the work it causes must
+- **No `ironstate-journal` yet — reopened for Phase 3, not settled.** It was
+  declined because `append` owned its own transaction boundary and could not
+  enlist in the caller's, while a state change and the work it causes must
   commit together — a cure period that fires with no notice sent is a legal
-  defect. It is also single-stream, while this system has thousands of live
-  instances. The transition log is a plain table shaped like a future adapter,
-  so adoption would be a swap rather than a rewrite.
-  *Trigger:* upstream gains a caller-supplied transaction and multi-stream
-  journals. Feedback on the gap has been sent upstream.
+  defect, not a bug — and because one journal was one stream, while this system
+  has thousands of live instances. Feedback went upstream and **both gaps are
+  fixed** in `ironstate-journal` 0.2.0: `Journal` has an associated `Tx<'a>`
+  with `append_in`, takes a `StreamId` on every operation, and
+  `RetainableJournal` adds the retention a seven-year records policy needs.
+
+  Three things to know before anyone writes the adapter, all learned from
+  upstream rather than from reading the trait:
+
+  1. **`execute_in` does not evolve the aggregate.** It returns a `#[must_use]
+     Pending` that you commit *after* your transaction resolves. Evolving on
+     append — which is what the original proposal implied — would leave the
+     in-memory aggregate ahead of the durable log whenever the enclosing
+     transaction rolls back, which is the exact failure the seam exists to
+     prevent, reintroduced one layer up.
+  2. **One `execute_in` per transaction.** `head` and `entropy_pos` take no
+     transaction and see only committed state, so a second call against the
+     same open transaction computes a stale rewind anchor. One transition plus
+     our own writes fits; more does not.
+  3. **`journal_contract_test!` cannot yet drive an adapter whose `Tx` is a real
+     transaction** — every entry point is bound `Tx<'a> = ()`. So the adapter
+     shape the seam was added for is currently outside the gate meant to hold
+     it, and such adapters are held instead by a twin over the same storage
+     whose `Tx` is `()`.
+
+  What remains is not a capability question, and upstream says so plainly:
+  every invariant must exist twice, as a test *and* as a database constraint,
+  and a CHECK constraint cannot see inside an event blob. Double-entry balance,
+  the singular-role partial index, and the triggers refusing `UPDATE` on ledger
+  and audit rows all need real columns — so the relational tables are the system
+  of record either way, and Phase 3 decides whether a journal beside them earns
+  its keep or is a second copy of the truth. Concluding it does not is a sound
+  outcome.
+
+  The transition log is a plain table shaped like an adapter for exactly this
+  reason, so adoption stays a swap rather than a rewrite.
+- **The audit hash chain is ours to build, permanently.** Proposal C — opt-in
+  hash-chained append — was declined upstream for a reason worth keeping: a
+  chain is evidence only once its root is externally anchored, and anchoring is
+  application infrastructure, so shipping the chain alone would deliver the
+  half that does not provide the property. If it is ever upstreamed it will be
+  pure functions over bytes the adapter already persists, hashed **per batch
+  rather than per event**, carrying a per-link algorithm tag. Build ours that
+  way, so it could be contributed later without reshaping.
 - **No empty crates for later phases.** A crate arrives when it has something in
   it.
 - **No dark mode.** The design document does not call for one, and the contrast

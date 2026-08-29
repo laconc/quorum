@@ -1,11 +1,13 @@
 # Build output
 /app/target/
+/app/target-linux/
 /target/
 
 # Generated data
 /.data/
 /.e2e-data/
 /.screenshot-verify/
+/.container-home/
 
 # End-to-end toolchain
 /e2e/node_modules/
