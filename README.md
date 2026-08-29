@@ -34,7 +34,10 @@ repository and are provided when needed.
 ## Getting started
 
 Requires [rustup](https://rustup.rs) (the toolchain installs itself from
-`app/rust-toolchain.toml`) and Node.js for the end-to-end suite.
+`app/rust-toolchain.toml`). Node.js is needed for the end-to-end suite, and
+Docker for regenerating screenshots — the gallery is produced inside pinned
+containers so that a laptop and CI render identically. Neither is needed for
+`make check`.
 
 ```sh
 make help          # every target
@@ -47,8 +50,11 @@ For the end-to-end suite and the screenshot gallery:
 ```sh
 make e2e-install   # once: toolchain and browsers
 make e2e           # functional and accessibility checks
-make screenshots   # regenerate docs/screenshots/
+make screenshots   # regenerate docs/screenshots/ (needs Docker)
 ```
+
+The first `make screenshots` compiles the workspace inside a container, so it
+takes a few minutes; later runs reuse the cached build.
 
 ## How it is put together
 

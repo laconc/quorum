@@ -23,6 +23,8 @@ prove the pipeline end to end.
   htmx, fingerprinted immutable assets, and `private, no-store` by default.
 - `app-seed`: the deterministic seed generator.
 - Playwright across three browser projects, axe accessibility checks, and a
-  screenshot pipeline proven byte-identical across consecutive runs.
+  screenshot pipeline that renders inside pinned containers with Chromium's
+  rasteriser pinned too — so the gallery is byte-identical across machines, not
+  just across consecutive runs, and CI can regenerate it and fail on any diff.
 - Planted-defect fixtures for the canonical encoder, the hash chain, and the
   identifier parser.

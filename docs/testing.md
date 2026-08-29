@@ -63,21 +63,39 @@ request descriptions, and the visual-regression baseline — so they must be
 reproducible. `make screenshots-verify` runs the pipeline twice and fails if the
 output differs.
 
-Four things make it hold, and when an image churns unexpectedly the cause is
-almost always one of them, in this order:
+Five things make it hold, and when an image churns unexpectedly the cause is
+almost always one of them, in this order. `docs/screenshots/README.md` is the
+canonical list; this is a summary of it:
 
 1. **The frozen clock.** `APP_CLOCK` freezes time, so anything relative does not
    drift.
 2. **Fixed identifiers.** The seed generator is deterministic — same input, same
    identifiers, same ordering. It draws no randomness and reads no clock.
-3. **Fonts.** A system stack renders differently across machines, so images are
-   produced inside the end-to-end container.
-4. **Animation.** Disabled in the capture, and `prefers-reduced-motion` honoured
+3. **Pinned containers.** `make screenshots` builds Linux binaries in a Rust
+   image tied to the declared MSRV and drives the browsers in the matching
+   Playwright image, at a pinned architecture, as the invoking user. Text
+   rasterises differently on macOS and Linux, so generating on a host would
+   churn every image.
+4. **Chromium's rasteriser flags.** Skia picks SIMD paths from runtime CPU
+   detection, so an emulated x86_64 container and a native runner rasterise the
+   same glyph differently. `--disable-skia-runtime-opts` pins the portable path.
+   WebKit needs none of this.
+5. **Animation.** Disabled in the capture, and `prefers-reduced-motion` honoured
    by the page.
+
+Together those make the gallery byte-identical **across machines**, not merely
+within one — which is what lets CI regenerate it and fail on any diff. That
+check catches staleness from any cause, including ones no path list would
+predict: a change to seed data, to a template's backing handler, or to the
+screenshot tests themselves.
 
 The pixel tolerance is **zero**. A budget hides exactly the small regressions
 the suite exists to catch, and invites tuning the number instead of fixing the
 cause.
+
+**Only `make screenshots` writes the gallery.** `make e2e` deliberately excludes
+the screenshot tests; if both wrote it, whichever ran last would decide what got
+committed.
 
 Screenshots come from **one engine per viewport** — Chromium at 1280, WebKit at
 375 — because three browser projects run the checks and two share a width, and

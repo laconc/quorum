@@ -21,7 +21,14 @@ make screenshots          # regenerate the gallery
 make screenshots-verify   # prove the pipeline is deterministic (two runs, byte-identical)
 ```
 
-The end-to-end toolchain must be installed first: `make e2e-install`.
+**Requires Docker**, because images are produced inside pinned containers — see
+the determinism rules below. The end-to-end toolchain must be installed first:
+`make e2e-install`. The first run compiles the workspace inside a container and
+takes a few minutes; later runs reuse the cached build.
+
+Containers run as your own user, so everything they write is yours. If you ever
+find root-owned files under `app/target-linux` or in the gallery, that rule has
+been broken and `make clean` will fail on Linux.
 
 ## Naming
 
