@@ -50,7 +50,7 @@ enforces it. A gallery that churns on every run is a gallery everyone learns to
 ignore, and a visual-regression baseline that moves on its own is not a
 baseline.
 
-Four things make it hold. When an image changes unexpectedly, check them in this
+Five things make it hold. When an image changes unexpectedly, check them in this
 order — it is nearly always the first two:
 
 1. **The frozen clock.** The application reads `APP_CLOCK` and installs a fixed
@@ -67,23 +67,31 @@ order — it is nearly always the first two:
 4. **Animation.** Disabled during capture, and the page honours
    `prefers-reduced-motion`.
 
-### What this does and does not guarantee
+5. **Chromium's rasteriser is pinned.** Skia selects SIMD code paths by
+   detecting CPU features at runtime, so an emulated x86_64 container and a
+   native runner rasterise the same glyph differently.
+   `--disable-skia-runtime-opts` forces the portable path, and subpixel
+   antialiasing, subpixel positioning and colour management are disabled for
+   the same reason. WebKit needs none of this — its images matched CI before
+   any of it was added.
 
-**It does** guarantee that regenerating twice in the same place produces
-identical bytes. That is what `make screenshots-verify` checks, and it is the
-property that makes the gallery a usable record.
+### What this guarantees
 
-**It does not** guarantee that your machine produces the same bytes as CI. On an
-Apple Silicon machine the container emulates x86_64, and Chromium's rasteriser
-takes a different path under emulation than on a native runner — WebKit's images
-match CI exactly, Chromium's do not. Chasing that last gap would mean either
-giving every contributor an x86_64 machine or tuning a pixel tolerance until it
-passes, and a tolerance tuned to make a check go green is not a check.
+Regenerating twice in the same place produces identical bytes — checked by
+`make screenshots-verify` — **and** your machine produces the same bytes as CI,
+which is checked by continuous integration regenerating the gallery and diffing
+it against what you committed.
 
-So the gallery is **the visual record and the input to pull request
-descriptions**. It is not a cross-machine byte oracle. What enforces that it
-stays current is the frontend gate: a change touching the interface must change
-the gallery, or continuous integration fails.
+That second property is what makes the check worth having. It catches a stale
+gallery from **any** cause, not only the ones a path list happens to name: a
+change to the seed data, to the handler behind a template, or to the screenshot
+tests themselves all alter the images without touching anything under
+`templates/` or `static/`.
+
+The pixel tolerance is zero, and it stays zero. If images differ, something
+about the page or the pipeline changed, and the answer is to find out what —
+never to widen a tolerance until the check passes, which converts a check into
+a formality.
 
 The pixel tolerance is **zero**. A budget hides exactly the small regressions
 this exists to catch.

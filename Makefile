@@ -25,7 +25,10 @@ DATA_DIR ?= .data
 # identical by construction rather than by luck: CI runs x86_64, so an Apple
 # Silicon machine emulates it rather than producing something merely similar.
 PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.62.1-noble
-RUST_IMAGE := rust:1.98
+# Tied to MSRV rather than written as `rust:1.98`, which would float to whatever
+# patch release is current and quietly change the compiler inside a pipeline
+# whose whole purpose is reproducibility.
+RUST_IMAGE := rust:$(MSRV)
 CONTAINER_PLATFORM := linux/amd64
 # A separate target directory: the host's macOS build and the container's Linux
 # build must not evict each other.
