@@ -135,6 +135,17 @@ is, anything under `app/crates/web/templates/`, `app/crates/web/static/`, or
 judgement. When nothing frontend changed, the section reads
 `N/A — no frontend change`. `make pr-screenshots` emits the Markdown.
 
+**Anything an agent writes on a pull request says so.** Descriptions, review
+replies, and comments all end with an attribution line naming Claude and the
+account it acted on behalf of. A human reading a review thread is entitled to
+know which side of it was written by a person — the reply may be right either
+way, but who wrote it changes how much independent checking it deserves.
+
+**Answer a review comment, then resolve its thread.** An answered thread left
+open is indistinguishable from an ignored one, and the reviewer has to re-read
+it to find out which. Do not resolve a thread whose comment has not actually
+been addressed in the code.
+
 ## Layout
 
 - `app/` — the Cargo workspace. Rust lives under `app/`; the `Makefile` at the
