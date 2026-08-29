@@ -33,7 +33,24 @@ CONTAINER_PLATFORM := linux/amd64
 # A separate target directory: the host's macOS build and the container's Linux
 # build must not evict each other.
 LINUX_TARGET := target-linux
-IN_CONTAINER := docker run --rm --platform $(CONTAINER_PLATFORM) -v "$(CURDIR)":/repo
+# The repository is bind-mounted, so anything the container writes lands in the
+# working tree with the container's ownership. Left as root that produces
+# root-owned build output and images which a normal user then cannot delete —
+# `rm -rf app/target-linux` fails part-way through, and `make clean` stops
+# being able to clean. Docker Desktop hides this on macOS; on Linux, and in CI,
+# it does not. Running as the invoking user keeps every generated file owned by
+# whoever asked for it.
+HOST_UID := $(shell id -u)
+HOST_GID := $(shell id -g)
+# A UID with no matching passwd entry has no home directory, so anything that
+# wants to write a cache needs to be told where. Both live inside the mount, so
+# they are the invoking user's too.
+CONTAINER_HOME := /repo/.container-home
+CONTAINER_HOME_HOST := $(CURDIR)/.container-home
+IN_CONTAINER := docker run --rm --platform $(CONTAINER_PLATFORM) \
+	--user $(HOST_UID):$(HOST_GID) \
+	-e HOME=$(CONTAINER_HOME) -e XDG_CACHE_HOME=$(CONTAINER_HOME)/.cache \
+	-v "$(CURDIR)":/repo
 
 CARGO_DIR := cd $(APP) &&
 
@@ -120,7 +137,8 @@ a11y: ## Run the accessibility checks over every route
 
 .PHONY: screenshots
 screenshots: ## Regenerate docs/screenshots/ (in a container, so CI and a laptop agree)
-	$(IN_CONTAINER) -w /repo/app -v quorum-cargo-registry:/usr/local/cargo/registry \
+	@mkdir -p $(CONTAINER_HOME_HOST)/.cargo
+	$(IN_CONTAINER) -w /repo/app -e CARGO_HOME=$(CONTAINER_HOME)/.cargo \
 		$(RUST_IMAGE) cargo build --release --target-dir $(LINUX_TARGET) -p app-web -p app-seed
 	# Cleared first so an image whose test was removed shows up as a deletion.
 	# Left in place it would sit in the gallery forever: `git diff` cannot see a
@@ -158,4 +176,4 @@ clean: ## Remove build artifacts and generated data
 	# host does not touch it. Removed by hand, or "clean" would quietly leave
 	# the larger of the two behind.
 	rm -rf $(APP)/$(LINUX_TARGET)
-	rm -rf $(DATA_DIR) .e2e-data .screenshot-verify
+	rm -rf $(DATA_DIR) .e2e-data .screenshot-verify $(CONTAINER_HOME_HOST)
