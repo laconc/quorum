@@ -22,6 +22,28 @@ const PORT = 8137;
  */
 const BIN = process.env.APP_BIN_DIR ?? "../app/target/release";
 
+/**
+ * Flags that make Chromium rasterise the same way regardless of the CPU it
+ * believes it is on.
+ *
+ * Skia picks SIMD paths by detecting processor features at runtime, so an
+ * emulated x86_64 machine and a native one can rasterise the same glyph
+ * differently — which is what made a container-generated gallery still differ
+ * from CI's. `--disable-skia-runtime-opts` pins it to the portable path; the
+ * rest remove the other sources of variation that are not the page itself:
+ * subpixel antialiasing and positioning depend on the display, and colour
+ * management depends on the profile.
+ *
+ * WebKit needs none of this — its images already matched CI byte for byte.
+ */
+const CHROMIUM_DETERMINISTIC_ARGS = [
+  "--disable-skia-runtime-opts",
+  "--disable-lcd-text",
+  "--disable-font-subpixel-positioning",
+  "--force-color-profile=srgb",
+  "--disable-gpu",
+];
+
 export default defineConfig({
   testDir: "./tests",
   // A screenshot that needed a retry to match is a screenshot nobody can trust.
@@ -55,7 +77,11 @@ export default defineConfig({
   projects: [
     {
       name: "chromium-desktop",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 800 },
+        launchOptions: { args: CHROMIUM_DETERMINISTIC_ARGS },
+      },
     },
     {
       // 375px is the width the design is decided at, and iOS Safari is the
@@ -65,7 +91,11 @@ export default defineConfig({
     },
     {
       name: "chromium-mobile",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 375, height: 812 } },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 375, height: 812 },
+        launchOptions: { args: CHROMIUM_DETERMINISTIC_ARGS },
+      },
     },
   ],
 

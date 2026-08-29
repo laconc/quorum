@@ -106,17 +106,25 @@ jobs:
       # both the visual record and the regression baseline worthless.
       - run: make screenshots-verify
 
-      # There is deliberately no check that the committed gallery byte-matches
-      # what this runner produces. That would require every contributor's
-      # machine to rasterise text identically to it, which containerising gets
-      # close to but cannot guarantee: an Apple Silicon machine emulating
-      # x86_64 drives Chromium's rasteriser down a different path, so its
-      # images differ while WebKit's match exactly. The risk the check was
-      # aimed at — an interface change landing with a stale gallery beside it —
-      # is covered by the frontend gate below, which requires the gallery to
-      # change whenever the frontend does. `screenshots-verify` above still
-      # proves regeneration is deterministic within one environment, which is
-      # the property that makes the gallery worth trusting at all.
+      # The committed gallery must match what this runner regenerates. That is
+      # only a fair thing to ask because images are produced inside a pinned
+      # container at a pinned architecture, and because Chromium is launched
+      # with its runtime CPU-feature detection disabled — without that, an
+      # Apple Silicon machine emulating x86_64 rasterises differently from a
+      # native runner and the check would fail for a reason no author could
+      # act on.
+      #
+      # It catches staleness from *any* cause, which is what makes it worth
+      # more than the frontend-path gate below: a change to the seed data, to
+      # a template's backing handler, or to the screenshot tests themselves all
+      # alter the gallery without touching a path any list would predict.
+      - name: The committed gallery is current
+        run: |
+          if ! git diff --quiet -- docs/screenshots; then
+            echo "::error::docs/screenshots is stale. Run 'make screenshots' and commit the result."
+            git diff --stat -- docs/screenshots
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()

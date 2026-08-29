@@ -151,4 +151,8 @@ pr-screenshots: ## Emit Markdown embedding the screenshots changed on this branc
 .PHONY: clean
 clean: ## Remove build artifacts and generated data
 	$(CARGO_DIR) $(CARGO) clean
-	rm -rf $(DATA_DIR) .screenshot-verify
+	# The container build has its own target directory, so `cargo clean` on the
+	# host does not touch it. Removed by hand, or "clean" would quietly leave
+	# the larger of the two behind.
+	rm -rf $(APP)/$(LINUX_TARGET)
+	rm -rf $(DATA_DIR) .e2e-data .screenshot-verify
