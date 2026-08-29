@@ -106,15 +106,17 @@ jobs:
       # both the visual record and the regression baseline worthless.
       - run: make screenshots-verify
 
-      # The committed gallery must match what the pipeline produces, so an
-      # interface change cannot land with a stale image beside it.
-      - name: The committed gallery is current
-        run: |
-          if ! git diff --quiet -- docs/screenshots; then
-            echo "::error::docs/screenshots is stale. Run 'make screenshots' and commit the result."
-            git diff --stat -- docs/screenshots
-            exit 1
-          fi
+      # There is deliberately no check that the committed gallery byte-matches
+      # what this runner produces. That would require every contributor's
+      # machine to rasterise text identically to it, which containerising gets
+      # close to but cannot guarantee: an Apple Silicon machine emulating
+      # x86_64 drives Chromium's rasteriser down a different path, so its
+      # images differ while WebKit's match exactly. The risk the check was
+      # aimed at — an interface change landing with a stale gallery beside it —
+      # is covered by the frontend gate below, which requires the gallery to
+      # change whenever the frontend does. `screenshots-verify` above still
+      # proves regeneration is deterministic within one environment, which is
+      # the property that makes the gallery worth trusting at all.
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()

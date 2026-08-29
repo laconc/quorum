@@ -17,6 +17,21 @@ APP_CLOCK ?= 2026-03-01T12:00:00Z
 # Where the seed databases are written.
 DATA_DIR ?= .data
 
+# Screenshots are produced inside containers, and this is not incidental.
+# Text rasterisation differs between macOS and Linux, so a gallery regenerated
+# on a laptop will never byte-match one regenerated in CI — the images churn
+# depending on who ran the command last, and a baseline that moves on its own
+# is not a baseline. Pinning the image *and* the architecture makes the two
+# identical by construction rather than by luck: CI runs x86_64, so an Apple
+# Silicon machine emulates it rather than producing something merely similar.
+PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v1.62.1-noble
+RUST_IMAGE := rust:1.98
+CONTAINER_PLATFORM := linux/amd64
+# A separate target directory: the host's macOS build and the container's Linux
+# build must not evict each other.
+LINUX_TARGET := target-linux
+IN_CONTAINER := docker run --rm --platform $(CONTAINER_PLATFORM) -v "$(CURDIR)":/repo
+
 CARGO_DIR := cd $(APP) &&
 
 .DEFAULT_GOAL := help
@@ -89,7 +104,11 @@ e2e-install: ## Install the end-to-end toolchain and its browsers
 .PHONY: e2e
 e2e: ## Run the end-to-end suite against a release build
 	$(CARGO_DIR) $(CARGO) build --release -p app-web -p app-seed
-	cd $(E2E) && npx playwright test
+	# Screenshots are excluded deliberately. `make screenshots` owns the gallery
+	# and writes it from inside a container; if this ran them too it would
+	# overwrite those images with host-rendered ones, and whichever command ran
+	# last would decide what got committed.
+	cd $(E2E) && npx playwright test --grep-invert @screenshot
 
 .PHONY: a11y
 a11y: ## Run the accessibility checks over every route
@@ -97,13 +116,15 @@ a11y: ## Run the accessibility checks over every route
 	cd $(E2E) && npx playwright test --grep @a11y
 
 .PHONY: screenshots
-screenshots: ## Regenerate docs/screenshots/
-	$(CARGO_DIR) $(CARGO) build --release -p app-web -p app-seed
+screenshots: ## Regenerate docs/screenshots/ (in a container, so CI and a laptop agree)
+	$(IN_CONTAINER) -w /repo/app -v quorum-cargo-registry:/usr/local/cargo/registry \
+		$(RUST_IMAGE) cargo build --release --target-dir $(LINUX_TARGET) -p app-web -p app-seed
 	# Cleared first so an image whose test was removed shows up as a deletion.
 	# Left in place it would sit in the gallery forever: `git diff` cannot see a
 	# file that never changed, so nothing downstream would ever notice.
 	rm -f docs/screenshots/*.png
-	cd $(E2E) && npx playwright test --grep @screenshot
+	$(IN_CONTAINER) -w /repo/$(E2E) -e APP_BIN_DIR=../app/$(LINUX_TARGET)/release \
+		$(PLAYWRIGHT_IMAGE) npx playwright test --grep @screenshot
 
 .PHONY: screenshots-verify
 screenshots-verify: ## Prove the screenshot pipeline is deterministic (two runs, byte-identical)

@@ -1,5 +1,6 @@
 # Build output
 /app/target/
+/app/target-linux/
 /target/
 
 # Generated data

@@ -59,11 +59,31 @@ order — it is nearly always the first two:
 2. **Fixed identifiers.** The seed generator is deterministic: same input, same
    row identifiers, same case numbers, same ordering. It draws no randomness and
    reads no clock.
-3. **Fonts.** A system font stack renders differently across machines, so images
-   are produced inside the end-to-end container both locally and in continuous
-   integration. Phase 2 bundles a webfont when real typography arrives.
+3. **Rendering environment.** `make screenshots` runs inside pinned containers —
+   a Rust image to build Linux binaries and the matching Playwright image to
+   drive the browsers — at a pinned architecture. Text rasterisation differs
+   between macOS and Linux, so generating on a laptop without this would churn
+   every image.
 4. **Animation.** Disabled during capture, and the page honours
    `prefers-reduced-motion`.
+
+### What this does and does not guarantee
+
+**It does** guarantee that regenerating twice in the same place produces
+identical bytes. That is what `make screenshots-verify` checks, and it is the
+property that makes the gallery a usable record.
+
+**It does not** guarantee that your machine produces the same bytes as CI. On an
+Apple Silicon machine the container emulates x86_64, and Chromium's rasteriser
+takes a different path under emulation than on a native runner — WebKit's images
+match CI exactly, Chromium's do not. Chasing that last gap would mean either
+giving every contributor an x86_64 machine or tuning a pixel tolerance until it
+passes, and a tolerance tuned to make a check go green is not a check.
+
+So the gallery is **the visual record and the input to pull request
+descriptions**. It is not a cross-machine byte oracle. What enforces that it
+stays current is the frontend gate: a change touching the interface must change
+the gallery, or continuous integration fails.
 
 The pixel tolerance is **zero**. A budget hides exactly the small regressions
 this exists to catch.

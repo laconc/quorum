@@ -55,7 +55,8 @@ fails a build.
 | Every response carries the security headers | applied as a layer, asserted over the real router in `crates/web/tests/security_headers.rs` |
 | Authenticated HTML is never stored by a cache | `private, no-store` is the default; caching is opt-in per route |
 | No floating point in the money path | `clippy.toml` `disallowed-types` |
-| Screenshots are byte-identical between runs | `make screenshots-verify` |
+| Screenshots are byte-identical between runs **in one environment** | `make screenshots-verify` |
+| The gallery changes whenever the frontend does | the `frontend-gate` job, from the diff rather than the author's judgement |
 
 Later phases add: every route has an authorization-matrix entry, every read path
 returns one association's rows, no member-only route answers an unauthenticated
@@ -201,6 +202,22 @@ judgement. When nothing frontend changed, the section reads
 - **The screenshot pixel tolerance is zero.** A budget hides exactly the small
   regressions the suite exists to catch, and invites tuning the number instead
   of fixing the cause.
+- **`make e2e` deliberately skips the screenshot tests.** `make screenshots`
+  owns the gallery and writes it from inside a container. If the end-to-end run
+  wrote it too, host-rendered images would overwrite container-rendered ones and
+  whichever command ran last would decide what got committed.
+- **`make screenshots` runs in containers, and is therefore slow.** Text
+  rasterises differently on macOS and Linux, so a gallery regenerated on a
+  laptop would never match one regenerated in CI. The Rust and Playwright
+  images and the architecture are all pinned. Do not "speed this up" by running
+  the browsers natively.
+- **CI does not check the gallery byte-matches what the runner produces**, and
+  that is deliberate. Containerising gets close but cannot close the gap: an
+  Apple Silicon machine emulating x86_64 drives Chromium's rasteriser down a
+  different path, so its images differ from a native runner's while WebKit's
+  match exactly. The gallery is the visual record and the input to pull request
+  descriptions, not a cross-machine byte oracle. What keeps it current is the
+  frontend gate.
 
 ## What deliberately doesn't exist
 

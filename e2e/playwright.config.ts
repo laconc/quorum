@@ -13,6 +13,15 @@ import { defineConfig, devices } from "@playwright/test";
 const APP_CLOCK = "2026-03-01T12:00:00Z";
 const PORT = 8137;
 
+/**
+ * Where the built binaries are.
+ *
+ * Defaults to the host build. `make screenshots` overrides it to point at the
+ * Linux build, because images are produced inside a container so that a
+ * developer's machine and CI rasterise text identically — see the Makefile.
+ */
+const BIN = process.env.APP_BIN_DIR ?? "../app/target/release";
+
 export default defineConfig({
   testDir: "./tests",
   // A screenshot that needed a retry to match is a screenshot nobody can trust.
@@ -66,7 +75,7 @@ export default defineConfig({
     // The data directory is removed first: every run starts from the seed and
     // nothing else, so two runs cannot disagree because of what a previous one
     // left behind.
-    command: `rm -rf ../.e2e-data && ../app/target/release/seed ../.e2e-data && APP_CLOCK=${APP_CLOCK} APP_PORT=${PORT} ../app/target/release/app-web`,
+    command: `rm -rf ../.e2e-data && ${BIN}/seed ../.e2e-data && APP_CLOCK=${APP_CLOCK} APP_PORT=${PORT} ${BIN}/app-web`,
     url: `http://127.0.0.1:${PORT}/healthz`,
     reuseExistingServer: false,
     stdout: "pipe",
