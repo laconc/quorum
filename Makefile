@@ -157,7 +157,9 @@ screenshots-verify: ## Prove the screenshot pipeline is deterministic (two runs,
 		echo "screenshots are byte-identical across two runs"; \
 	else \
 		echo "ERROR: screenshots differ between runs. Check, in order: the frozen"; \
-		echo "clock (APP_CLOCK), asset fingerprints, fonts, and animation."; \
+		echo "clock (APP_CLOCK); fixed identifiers from the seed generator; the"; \
+		echo "container images and pinned architecture; Chromium's rasteriser"; \
+		echo "flags; and animation. See docs/screenshots/README.md."; \
 		diff -r --exclude=README.md .screenshot-verify docs/screenshots || true; \
 		rm -rf .screenshot-verify; \
 		exit 1; \

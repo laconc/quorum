@@ -3,12 +3,15 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * The instant every run is frozen at.
  *
- * Determinism in the screenshot pipeline rests on four things, and this is the
+ * Determinism in the screenshot pipeline rests on five things, and this is the
  * first: with a moving clock, anything relative — "due in 14 days", "reported
- * this morning" — drifts between runs and churns every image. The other three
- * are fixed identifiers from the seed generator, a font stack that resolves
- * identically (which is why images are produced in a container), and animation
- * disabled.
+ * this morning" — drifts between runs and churns every image. The other four
+ * are fixed identifiers from the seed generator; the pinned container images
+ * and architecture that images are produced under; Chromium's rasteriser flags
+ * below; and animation disabled.
+ *
+ * docs/screenshots/README.md is the full list, and the order to check them in
+ * when an image churns unexpectedly.
  */
 const APP_CLOCK = "2026-03-01T12:00:00Z";
 const PORT = 8137;
